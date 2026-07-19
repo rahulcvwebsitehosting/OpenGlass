@@ -65,13 +65,18 @@ Follow these steps to set up OpenGlass:
    yarn install
    ```
 
-3. Add API keys for Groq and OpenAI in the `keys.ts` file located at [https://github.com/BasedHardware/OpenGlass/blob/main/sources/keys.ts](https://github.com/BasedHardware/OpenGlass/blob/main/sources/keys.ts).
+3. Configure server-side environment variables (never committed to the repo, never exposed to the browser). Copy `.env.template` and fill in:
+   - `VISION_API_KEY` — Groq API key
+   - `VISION_BASE_URL` — `https://api.groq.com/openai/v1`
+   - `VISION_MODEL` — `llama-3.2-11b-vision-preview`
+   - `CHAT_API_KEY` — NVIDIA NIM API key
+   - `CHAT_BASE_URL` — `https://integrate.api.nvidia.com/v1`
+   - `CHAT_MODEL` — `meta/llama-3.2-90b-vision-instruct`
+   - `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` — Supabase project URL and anon key (these are the only values meant to be public and ship in the client bundle).
 
-4. For Ollama, self-host the REST API from the repository at [https://github.com/ollama/ollama](https://github.com/ollama/ollama) and add the URL to the `keys.ts` file. The URL should be http://localhost:11434/api/chat
-5. go to terminal and type "ollama pull moondream:1.8b-v2-fp16"
+   Provider keys (`VISION_API_KEY` / `CHAT_API_KEY`) are read only inside the Vercel serverless functions under `api/` and are never bundled to the client. Do not put them in `sources/keys.ts` or any `EXPO_PUBLIC_*` variable.
 
-
-6. Start the application:
+4. Start the application:
    ```
    npm start
    ```
