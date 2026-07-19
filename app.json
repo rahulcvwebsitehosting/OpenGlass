@@ -31,8 +31,7 @@
       "package": "com.basedhardware.find"
     },
     "web": {
-      "favicon": "./assets/favicon.png",
-      "output": "static"
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "react-native-ble-plx"
