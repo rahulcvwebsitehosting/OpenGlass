@@ -31,13 +31,11 @@
       "package": "com.basedhardware.find"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "output": "static"
     },
     "plugins": [
       "react-native-ble-plx"
-    ],
-    "experiments": {
-      "baseUrl": "/llama3-hackaton"
-    }
+    ]
   }
 }

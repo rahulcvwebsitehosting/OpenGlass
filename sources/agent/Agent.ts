@@ -16,6 +16,8 @@ export class Agent {
     #stateCopy: AgentState = { loading: false };
     #stateListeners: (() => void)[] = [];
 
+    onPhotoProcessed?: (photo: Uint8Array, description: string) => void;
+
     async addPhoto(photos: Uint8Array[]) {
         await this.#lock.inLock(async () => {
 
@@ -26,6 +28,7 @@ export class Agent {
                 let description = await imageDescription(p);
                 console.log('Description', description);
                 this.#photos.push({ photo: p, description });
+                if (this.onPhotoProcessed) this.onPhotoProcessed(p, description);
                 lastDescription = description;
             }
 
@@ -63,6 +66,10 @@ export class Agent {
             this.#state.loading = false;
             this.#notify();
         });
+    }
+
+    getState() {
+        return this.#stateCopy;
     }
 
     #notify = () => {

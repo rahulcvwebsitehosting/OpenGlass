@@ -5,8 +5,9 @@ import { toBase64Image } from '../utils/base64';
 import { Agent } from '../agent/Agent';
 import { InvalidateSync } from '../utils/invalidateSync';
 import { textToSpeech } from '../modules/openai';
+import { supabase } from '../keys';
 
-function usePhotos(device: BluetoothRemoteGATTServer) {
+function usePhotos(device: BluetoothRemoteGATTServer, onRotated: (rotated: Uint8Array) => void) {
 
     // Subscribe to device
     const [photos, setPhotos] = React.useState<Uint8Array[]>([]);
@@ -31,9 +32,10 @@ function usePhotos(device: BluetoothRemoteGATTServer) {
                 } else {
                     if (id === null) {
                         console.log('Photo received', buffer);
-                        rotateImage(buffer, '270').then((rotated) => {
+                        rotateImage(buffer, '270').then(async (rotated) => {
                             console.log('Rotated photo', rotated);
                             setPhotos((p) => [...p, rotated]);
+                            onRotated(rotated);
                         });
                         previousChunk = -1;
                         return;
@@ -77,8 +79,42 @@ function usePhotos(device: BluetoothRemoteGATTServer) {
 }
 
 export const DeviceView = React.memo((props: { device: BluetoothRemoteGATTServer }) => {
-    const [subscribed, photos] = usePhotos(props.device);
-    const agent = React.useMemo(() => new Agent(), []);
+    const lastPhotoId = React.useRef<string | null>(null);
+
+    const onRotated = React.useCallback(async (rotated: Uint8Array) => {
+        try {
+            const path = `photos/${Date.now()}.jpg`;
+            const blob = new Blob([rotated], { type: 'image/jpeg' });
+            const { error: upErr } = await supabase.storage.from('photos').upload(path, blob);
+            if (upErr) {
+                console.error('Supabase storage upload error:', upErr);
+                return;
+            }
+            const { data, error: insErr } = await supabase.from('photos').insert({ storage_path: path }).select().single();
+            if (insErr) {
+                console.error('Supabase photos insert error:', insErr);
+                return;
+            }
+            lastPhotoId.current = data?.id ?? null;
+        } catch (e) {
+            console.error('onRotated persistence error:', e);
+        }
+    }, []);
+
+    const [subscribed, photos] = usePhotos(props.device, onRotated);
+    const agent = React.useMemo(() => {
+        const a = new Agent();
+        a.onPhotoProcessed = async (_photo, description) => {
+            if (lastPhotoId.current) {
+                try {
+                    await supabase.from('photos').update({ caption: description }).eq('id', lastPhotoId.current);
+                } catch (e) {
+                    console.error('caption update error:', e);
+                }
+            }
+        };
+        return a;
+    }, []);
     const agentState = agent.use();
 
     // Background processing agent
@@ -124,7 +160,22 @@ export const DeviceView = React.memo((props: { device: BluetoothRemoteGATTServer
                     placeholder='What do you need?'
                     placeholderTextColor={'#888'}
                     readOnly={agentState.loading}
-                    onSubmitEditing={(e) => agent.answer(e.nativeEvent.text)}
+                    onSubmitEditing={async (e) => {
+                        const question = e.nativeEvent.text;
+                        await agent.answer(question);
+                        const state = agent.getState();
+                        if (lastPhotoId.current && state?.answer) {
+                            try {
+                                await supabase.from('chats').insert({
+                                    photo_id: lastPhotoId.current,
+                                    question,
+                                    answer: state.answer,
+                                });
+                            } catch (err) {
+                                console.error('chat insert error:', err);
+                            }
+                        }
+                    }}
                 />
             </View>
         </View>
