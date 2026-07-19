@@ -1,14 +1,8 @@
 ﻿{
+  "framework": null,
   "buildCommand": "npm run build:web",
   "outputDirectory": "dist",
   "installCommand": "npm install",
-  "devCommand": "npm run web",
-  "build": {
-    "env": {
-      "EXPO_PUBLIC_SUPABASE_URL": "https://auccpimtpymknekxnwpo.supabase.co",
-      "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1Y2NwaW10cHlta25la3hud3BvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0MzkzMzMsImV4cCI6MjEwMDAxNTMzM30.aCoYlpw1ZDyfEo6Zib2yEYV7lRtkT_0ca8SRyD14F3U"
-    }
-  },
   "rewrites": [
     { "source": "/((?!api/).)", "destination": "/index.html" }
   ]
