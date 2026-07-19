@@ -41,13 +41,13 @@ import { imageBlurry } from '../sources/agent/imageBlurry';
         return await imageDescription(img);
     });
     await runTest('Description (llava-llama3)', async (img) => {
-        return await imageDescription(img, 'llava-llama3');
+        return await imageDescription(img);
     });
     await runTest('Description (llava:34b-v1.6)', async (img) => {
-        return await imageDescription(img, 'llava:34b-v1.6');
+        return await imageDescription(img);
     });
-    await runTest('Description (moondream:1.8b-v2-fp16)', async (img) => {
-        return await imageDescription(img, 'moondream:1.8b-v2-fp16');
+    await runTest('Description (moondream)', async (img) => {
+        return await imageDescription(img);
     });
 
     // console.log(`Run blurry tests`);

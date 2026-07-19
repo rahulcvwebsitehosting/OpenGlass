@@ -4,7 +4,7 @@ import { rotateImage } from '../modules/imaging';
 import { toBase64Image } from '../utils/base64';
 import { Agent } from '../agent/Agent';
 import { InvalidateSync } from '../utils/invalidateSync';
-import { textToSpeech } from '../modules/openai';
+
 import { supabase } from '../keys';
 
 function usePhotos(device: BluetoothRemoteGATTServer, onRotated: (rotated: Uint8Array) => void) {
@@ -136,7 +136,7 @@ export const DeviceView = React.memo((props: { device: BluetoothRemoteGATTServer
 
     React.useEffect(() => {
         if (agentState.answer) {
-            textToSpeech(agentState.answer)
+            // TTS moved to server-side; implement via /api/tts endpoint if needed
         }
     }, [agentState.answer])
 
