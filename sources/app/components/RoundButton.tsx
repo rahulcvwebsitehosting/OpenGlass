@@ -1,82 +1,105 @@
 import * as React from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleProp, Text, View, ViewStyle } from 'react-native';
-import { iOSUIKit } from 'react-native-typography';
-import { Theme } from './theme';
+import { ActivityIndicator, Pressable, StyleProp, Text, View, ViewStyle } from 'react-native';
+import { Theme, ThemeApp } from './theme';
 
-export type RoundButtonSize = 'large' | 'normal' | 'small';
-const sizes: { [key in RoundButtonSize]: { height: number, fontSize: number, hitSlop: number, pad: number } } = {
-    large: { height: 48, fontSize: 21, hitSlop: 0, pad: Platform.OS == 'ios' ? 0 : -1 },
-    normal: { height: 32, fontSize: 16, hitSlop: 8, pad: Platform.OS == 'ios' ? 1 : -2 },
-    small: { height: 24, fontSize: 14, hitSlop: 12, pad: Platform.OS == 'ios' ? -1 : -1 }
-}
+type ButtonVariant = 'primary' | 'outline' | 'ghost';
+type ButtonSize = 'lg' | 'md' | 'sm';
 
-export type RoundButtonDisplay = 'default' | 'inverted';
-const displays: { [key in RoundButtonDisplay]: {
-    textColor: string,
-    backgroundColor: string,
-    borderColor: string,
-} } = {
-    default: {
-        backgroundColor: '#fff',
-        borderColor: '#fff',
-        textColor: 'black'
-    },
-    inverted: {
-        backgroundColor: 'transparent',
-        borderColor: 'transparent',
-        textColor: Theme.text,
-    }
-}
+const sizeMap: Record<ButtonSize, { height: number; fontSize: number; padH: number; radius: number }> = {
+    lg: { height: 52, fontSize: 18, padH: 28, radius: 26 },
+    md: { height: 42, fontSize: 15, padH: 20, radius: 21 },
+    sm: { height: 34, fontSize: 13, padH: 16, radius: 17 },
+};
 
-export const RoundButton = React.memo((props: { size?: RoundButtonSize, display?: RoundButtonDisplay, title?: any, style?: StyleProp<ViewStyle>, disabled?: boolean, loading?: boolean, onPress?: () => void, action?: () => Promise<any> }) => {
-    const [loading, setLoading] = React.useState(false);
-    const doLoading = props.loading !== undefined ? props.loading : loading;
-    const doAction = React.useCallback(() => {
-        if (props.onPress) {
-            props.onPress();
-            return;
-        }
+const variantMap: Record<ButtonVariant, { bg: string; bgPressed: string; text: string; border: string }> = {
+    primary: { bg: Theme.accent, bgPressed: '#5a52e0', text: '#fff', border: Theme.accent },
+    outline: { bg: 'transparent', bgPressed: 'rgba(108,99,255,0.08)', text: Theme.accent, border: Theme.accent },
+    ghost: { bg: 'transparent', bgPressed: 'rgba(255,255,255,0.04)', text: Theme.textSoft, border: 'transparent' },
+};
+
+export const RoundButton = React.memo((props: {
+    title?: string;
+    size?: ButtonSize;
+    variant?: ButtonVariant;
+    style?: StyleProp<ViewStyle>;
+    disabled?: boolean;
+    loading?: boolean;
+    onPress?: () => void;
+    action?: () => Promise<void>;
+}) => {
+    const [busy, setBusy] = React.useState(false);
+    const loading = props.loading ?? busy;
+    const variant = variantMap[props.variant ?? 'primary'];
+    const s = sizeMap[props.size ?? 'lg'];
+
+    const doPress = React.useCallback(() => {
+        if (props.onPress) { props.onPress(); return; }
         if (props.action) {
-            setLoading(true);
-            (async () => {
-                try {
-                    await props.action!();
-                } finally {
-                    setLoading(false);
-                }
-            })();
+            setBusy(true);
+            props.action().finally(() => setBusy(false));
         }
     }, [props.onPress, props.action]);
 
-    const size = sizes[props.size || 'large'];
-    const display = displays[props.display || 'default'];
-
     return (
         <Pressable
-            disabled={doLoading || props.disabled}
-            hitSlop={size.hitSlop}
-            style={(p) => ([
+            disabled={loading || props.disabled}
+            style={(p) => [
                 {
-                    borderWidth: 1,
-                    borderRadius: size.height / 2,
-                    backgroundColor: display.backgroundColor,
-                    borderColor: display.borderColor,
-                    opacity: props.disabled ? 0.5 : 1
+                    height: s.height,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingHorizontal: s.padH,
+                    borderRadius: s.radius,
+                    borderWidth: variant.border === 'transparent' ? 0 : 2,
+                    backgroundColor: p.pressed ? variant.bgPressed : variant.bg,
+                    borderColor: variant.border,
+                    opacity: props.disabled ? 0.45 : 1,
+                    boxShadow:
+                        props.variant === 'outline' || props.variant === 'ghost'
+                            ? undefined
+                            : Theme.shadowHard,
                 },
-                {
-                    opacity: p.pressed ? 0.9 : 1
-                },
-                props.style])}
-            onPress={doAction}
+                { transform: p.pressed ? [{ translateX: 2 }, { translateY: 2 }] : undefined },
+                props.style,
+            ]}
+            onPress={doPress}
         >
-            <View style={{ height: size.height - 2, alignItems: 'center', justifyContent: 'center', minWidth: 64, paddingHorizontal: 16 }}>
-                {doLoading && (
-                    <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, top: 0, alignItems: 'center', justifyContent: 'center' }}>
-                        <ActivityIndicator color={display.textColor} size='small' />
-                    </View>
-                )}
-                <Text style={[iOSUIKit.title3, { marginTop: size.pad, opacity: doLoading ? 0 : 1, color: display.textColor, fontSize: size.fontSize, fontWeight: '600', includeFontPadding: false }]} numberOfLines={1}>{props.title}</Text>
-            </View>
+            {loading && (
+                <ActivityIndicator
+                    color={variant.text}
+                    size="small"
+                    style={{ marginRight: props.title ? 8 : 0 }}
+                />
+            )}
+            {!!props.title && !loading && (
+                <Text
+                    numberOfLines={1}
+                    style={{
+                        color: variant.text,
+                        fontSize: s.fontSize,
+                        fontWeight: '700',
+                        letterSpacing: -0.2,
+                        includeFontPadding: false,
+                    }}
+                >
+                    {props.title}
+                </Text>
+            )}
+            {!!props.title && loading && (
+                <Text
+                    numberOfLines={1}
+                    style={{
+                        color: variant.text,
+                        fontSize: s.fontSize,
+                        fontWeight: '700',
+                        opacity: 0.6,
+                        includeFontPadding: false,
+                    }}
+                >
+                    {props.title}
+                </Text>
+            )}
         </Pressable>
-    )
+    );
 });

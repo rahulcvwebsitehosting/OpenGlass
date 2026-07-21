@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Dude where’s my car?",
-    "slug": "find-anything",
+    "name": "OpenGlass AI",
+    "slug": "openglass-ai",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,7 +14,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.basedhardware.find",
+      "bundleIdentifier": "com.openglass.ai",
       "infoPlist": {
         "UIBackgroundModes": [
           "fetch",
@@ -28,10 +28,11 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.basedhardware.find"
+      "package": "com.openglass.ai"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "output": "single"
     },
     "plugins": [
       "react-native-ble-plx"

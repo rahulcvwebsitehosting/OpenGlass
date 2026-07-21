@@ -4,12 +4,12 @@ import { rotateImage } from '../modules/imaging';
 import { toBase64Image } from '../utils/base64';
 import { Agent } from '../agent/Agent';
 import { InvalidateSync } from '../utils/invalidateSync';
+import { Theme } from './components/theme';
 
 import { supabase } from '../keys';
 
 function usePhotos(device: BluetoothRemoteGATTServer, onRotated: (rotated: Uint8Array) => void) {
 
-    // Subscribe to device
     const [photos, setPhotos] = React.useState<Uint8Array[]>([]);
     const [subscribed, setSubscribed] = React.useState<boolean>(false);
     React.useEffect(() => {
@@ -19,7 +19,6 @@ function usePhotos(device: BluetoothRemoteGATTServer, onRotated: (rotated: Uint8
             let buffer: Uint8Array = new Uint8Array(0);
             function onChunk(id: number | null, data: Uint8Array) {
 
-                // Resolve if packet is the first one
                 if (previousChunk === -1) {
                     if (id === null) {
                         return;
@@ -49,11 +48,9 @@ function usePhotos(device: BluetoothRemoteGATTServer, onRotated: (rotated: Uint8
                     }
                 }
 
-                // Append data
                 buffer = new Uint8Array([...buffer, ...data]);
             }
 
-            // Subscribe for photo updates
             const service = await device.getPrimaryService('19B10000-E8F2-537E-4F6C-D104768A1214'.toLowerCase());
             const photoCharacteristic = await service.getCharacteristic('19b10005-e8f2-537e-4f6c-d104768a1214');
             await photoCharacteristic.startNotifications();
@@ -69,7 +66,6 @@ function usePhotos(device: BluetoothRemoteGATTServer, onRotated: (rotated: Uint8
                     onChunk(packetId, packet);
                 }
             });
-            // Start automatic photo capture every 5s
             const photoControlCharacteristic = await service.getCharacteristic('19b10006-e8f2-537e-4f6c-d104768a1214');
             await photoControlCharacteristic.writeValue(new Uint8Array([0x05]));
         })();
@@ -117,7 +113,6 @@ export const DeviceView = React.memo((props: { device: BluetoothRemoteGATTServer
     }, []);
     const agentState = agent.use();
 
-    // Background processing agent
     const processedPhotos = React.useRef<Uint8Array[]>([]);
     const sync = React.useMemo(() => {
         let processed = 0;
@@ -134,32 +129,158 @@ export const DeviceView = React.memo((props: { device: BluetoothRemoteGATTServer
         sync.invalidate();
     }, [photos]);
 
-    React.useEffect(() => {
-        if (agentState.answer) {
-            // TTS moved to server-side; implement via /api/tts endpoint if needed
-        }
-    }, [agentState.answer])
-
     return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                    {photos.map((photo, index) => (
-                        <Image key={index} style={{ width: 100, height: 100 }} source={{ uri: toBase64Image(photo) }} />
-                    ))}
+        <View style={{ flex: 1, flexDirection: 'column', paddingHorizontal: 20, gap: 12 }}>
+            {/* ---- Status bar ---- */}
+            <View
+                style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    backgroundColor: Theme.surfaceAlt,
+                    borderRadius: Theme.radiusMd,
+                    padding: 12,
+                    borderWidth: 1,
+                    borderColor: Theme.border,
+                    marginTop: 8,
+                }}
+            >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View
+                        style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor: subscribed ? Theme.success : Theme.warning,
+                        }}
+                    />
+                    <Text style={{ color: Theme.textSoft, fontSize: 13, fontWeight: '600' }}>
+                        {subscribed ? 'Connected — capturing every 5s' : 'Connecting...'}
+                    </Text>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 16 }}>
+                    <Text style={{ color: Theme.textMuted, fontSize: 12 }}>
+                        Photos: <Text style={{ color: Theme.accent, fontWeight: '700' }}>{photos.length}</Text>
+                    </Text>
+                    <Text style={{ color: Theme.textMuted, fontSize: 12 }}>
+                        Described: <Text style={{ color: Theme.accentRight, fontWeight: '700' }}>{processedPhotos.current.length}</Text>
+                    </Text>
                 </View>
             </View>
 
-            <View style={{ backgroundColor: 'rgb(28 28 28)', height: 600, width: 600, borderRadius: 64, flexDirection: 'column', padding: 64 }}>
-                <View style={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}>
-                    {agentState.loading && (<ActivityIndicator size="large" color={"white"} />)}
-                    {agentState.answer && !agentState.loading && (<ScrollView style={{ flexGrow: 1, flexBasis: 0 }}><Text style={{ color: 'white', fontSize: 32 }}>{agentState.answer}</Text></ScrollView>)}
+            {/* ---- Recent photo strip ---- */}
+            {photos.length > 0 && (
+                <View>
+                    <Text style={{ color: Theme.textSoft, fontSize: 12, fontWeight: '600', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
+                        Recent captures
+                    </Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                            {photos.slice(-12).map((photo, index) => (
+                                <Image
+                                    key={index}
+                                    style={{
+                                        width: 72,
+                                        height: 72,
+                                        borderRadius: Theme.radiusMd,
+                                        borderWidth: 2,
+                                        borderColor: Theme.border,
+                                    }}
+                                    source={{ uri: toBase64Image(photo) }}
+                                />
+                            ))}
+                        </View>
+                    </ScrollView>
                 </View>
+            )}
+
+            {/* ---- AI description (if available) ---- */}
+            {agentState.lastDescription && !agentState.answer && (
+                <View
+                    style={{
+                        backgroundColor: Theme.surfaceAlt,
+                        borderRadius: Theme.radiusXl,
+                        borderWidth: 2,
+                        borderColor: Theme.border,
+                        padding: 16,
+                    }}
+                >
+                    <Text style={{ color: Theme.accent, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
+                        Scene
+                    </Text>
+                    <Text style={{ color: Theme.text, fontSize: 15, lineHeight: 22 }}>
+                        {agentState.lastDescription}
+                    </Text>
+                </View>
+            )}
+
+            {/* ---- Answer card ---- */}
+            {agentState.answer && !agentState.loading && (
+                <View
+                    style={{
+                        backgroundColor: Theme.surface,
+                        borderRadius: Theme.radiusXl,
+                        borderWidth: 2,
+                        borderColor: Theme.accent,
+                        borderLeftWidth: 4,
+                        borderLeftColor: Theme.accent,
+                        padding: 16,
+                        ...Theme.shadowCard,
+                    }}
+                >
+                    <Text style={{ color: Theme.accent, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+                        Answer
+                    </Text>
+                    <Text style={{ color: Theme.text, fontSize: 16, lineHeight: 24 }}>
+                        {agentState.answer}
+                    </Text>
+                </View>
+            )}
+
+            {/* ---- Loading indicator ---- */}
+            {agentState.loading && (
+                <View
+                    style={{
+                        flex: 1,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        gap: 12,
+                    }}
+                >
+                    <ActivityIndicator size="large" color={Theme.accent} />
+                    <Text style={{ color: Theme.textSoft, fontSize: 14 }}>
+                        Analyzing scenes...
+                    </Text>
+                </View>
+            )}
+
+            {/* ---- Spacer ---- */}
+            <View style={{ flex: 1 }} />
+
+            {/* ---- Question input ---- */}
+            <View
+                style={{
+                    backgroundColor: Theme.surface,
+                    borderRadius: Theme.radiusXl,
+                    borderWidth: 2,
+                    borderColor: Theme.border,
+                    padding: 12,
+                    marginBottom: 16,
+                }}
+            >
                 <TextInput
-                    style={{ color: 'white', height: 64, fontSize: 32, borderRadius: 16, backgroundColor: 'rgb(48 48 48)', padding: 16 }}
-                    placeholder='What do you need?'
-                    placeholderTextColor={'#888'}
-                    readOnly={agentState.loading}
+                    style={{
+                        color: Theme.text,
+                        fontSize: 17,
+                        padding: 8,
+                        backgroundColor: Theme.surfaceAlt,
+                        borderRadius: Theme.radiusMd,
+                        borderWidth: 1,
+                        borderColor: Theme.borderBright,
+                    }}
+                    placeholder="Ask about what you're seeing..."
+                    placeholderTextColor={Theme.textMuted}
+                    readOnly={agentState.loading || photos.length === 0}
                     onSubmitEditing={async (e) => {
                         const question = e.nativeEvent.text;
                         await agent.answer(question);
