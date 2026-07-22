@@ -1,20 +1,71 @@
 import * as React from 'react';
 import { ActivityIndicator, Pressable, StyleProp, Text, View, ViewStyle } from 'react-native';
-import { Theme, ThemeApp } from './theme';
+import { Theme } from './theme';
 
-type ButtonVariant = 'primary' | 'outline' | 'ghost';
-type ButtonSize = 'lg' | 'md' | 'sm';
+type ButtonVariant = 'default' | 'marker' | 'secondary' | 'outline' | 'ghost';
+type ButtonSize = 'lg' | 'md' | 'sm' | 'icon';
 
 const sizeMap: Record<ButtonSize, { height: number; fontSize: number; padH: number; radius: number }> = {
-    lg: { height: 52, fontSize: 18, padH: 28, radius: 26 },
-    md: { height: 42, fontSize: 15, padH: 20, radius: 21 },
-    sm: { height: 34, fontSize: 13, padH: 16, radius: 17 },
+    lg: { height: 56, fontSize: 18, padH: 32, radius: Theme.radiusLg },
+    md: { height: 48, fontSize: 16, padH: 24, radius: Theme.radiusButton },
+    sm: { height: 40, fontSize: 14, padH: 18, radius: Theme.radiusButton },
+    icon: { height: 44, fontSize: 14, padH: 0, radius: Theme.radiusSm },
 };
 
-const variantMap: Record<ButtonVariant, { bg: string; bgPressed: string; text: string; border: string }> = {
-    primary: { bg: Theme.accent, bgPressed: '#5a52e0', text: '#fff', border: Theme.accent },
-    outline: { bg: 'transparent', bgPressed: 'rgba(108,99,255,0.08)', text: Theme.accent, border: Theme.accent },
-    ghost: { bg: 'transparent', bgPressed: 'rgba(255,255,255,0.04)', text: Theme.textSoft, border: 'transparent' },
+const variantMap: Record<ButtonVariant, {
+    bg: string;
+    bgPressed: string;
+    text: string;
+    border: string;
+    borderWidth: number;
+    shadow: boolean;
+    dashed: boolean;
+}> = {
+    default: {
+        bg: Theme.postit,
+        bgPressed: Theme.postitDeep,
+        text: Theme.text,
+        border: Theme.text,
+        borderWidth: 2,
+        shadow: true,   // hard-shadow-sm → pushed down on press
+        dashed: false,
+    },
+    marker: {
+        bg: Theme.accent,
+        bgPressed: Theme.accentDeep,
+        text: '#ffffff',
+        border: Theme.text,
+        borderWidth: 2,
+        shadow: true,
+        dashed: false,
+    },
+    secondary: {
+        bg: Theme.surface,
+        bgPressed: Theme.surfaceDark,
+        text: Theme.text,
+        border: Theme.text,
+        borderWidth: 2,
+        shadow: true,
+        dashed: false,
+    },
+    outline: {
+        bg: Theme.surface,
+        bgPressed: Theme.postit,
+        text: Theme.text,
+        border: Theme.text,
+        borderWidth: 2,
+        shadow: false,
+        dashed: true,
+    },
+    ghost: {
+        bg: 'transparent',
+        bgPressed: Theme.postit,
+        text: Theme.textSoft,
+        border: 'transparent',
+        borderWidth: 0,
+        shadow: false,
+        dashed: false,
+    },
 };
 
 export const RoundButton = React.memo((props: {
@@ -29,7 +80,7 @@ export const RoundButton = React.memo((props: {
 }) => {
     const [busy, setBusy] = React.useState(false);
     const loading = props.loading ?? busy;
-    const variant = variantMap[props.variant ?? 'primary'];
+    const variant = variantMap[props.variant ?? 'default'];
     const s = sizeMap[props.size ?? 'lg'];
 
     const doPress = React.useCallback(() => {
@@ -45,22 +96,29 @@ export const RoundButton = React.memo((props: {
             disabled={loading || props.disabled}
             style={(p) => [
                 {
-                    height: s.height,
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    paddingHorizontal: s.padH,
+                    height: s.height,
+                    minWidth: props.size === 'icon' ? s.height : undefined,
+                    paddingHorizontal: props.size === 'icon' ? 0 : s.padH,
                     borderRadius: s.radius,
-                    borderWidth: variant.border === 'transparent' ? 0 : 2,
                     backgroundColor: p.pressed ? variant.bgPressed : variant.bg,
+                    borderWidth: variant.borderWidth,
                     borderColor: variant.border,
-                    opacity: props.disabled ? 0.45 : 1,
-                    boxShadow:
-                        props.variant === 'outline' || props.variant === 'ghost'
-                            ? undefined
-                            : Theme.shadowHard,
+                    borderStyle: variant.dashed ? 'dashed' : 'solid',
+                    opacity: props.disabled ? 0.5 : 1,
+                    boxShadow: variant.shadow
+                        ? `3px 3px 0 0 ${Theme.text}`
+                        : undefined,
                 },
-                { transform: p.pressed ? [{ translateX: 2 }, { translateY: 2 }] : undefined },
+                // Press: push down (shadow disappears, element shifts)
+                p.pressed && variant.shadow
+                    ? { transform: [{ translateX: 3 }, { translateY: 3 }], boxShadow: 'none' }
+                    : undefined,
+                p.pressed && !variant.shadow
+                    ? { opacity: 0.85 }
+                    : undefined,
                 props.style,
             ]}
             onPress={doPress}
@@ -72,28 +130,16 @@ export const RoundButton = React.memo((props: {
                     style={{ marginRight: props.title ? 8 : 0 }}
                 />
             )}
-            {!!props.title && !loading && (
+            {!!props.title && (
                 <Text
                     numberOfLines={1}
                     style={{
+                        fontFamily: Theme.fontDisplay,
+                        fontWeight: '700',
                         color: variant.text,
                         fontSize: s.fontSize,
-                        fontWeight: '700',
                         letterSpacing: -0.2,
-                        includeFontPadding: false,
-                    }}
-                >
-                    {props.title}
-                </Text>
-            )}
-            {!!props.title && loading && (
-                <Text
-                    numberOfLines={1}
-                    style={{
-                        color: variant.text,
-                        fontSize: s.fontSize,
-                        fontWeight: '700',
-                        opacity: 0.6,
+                        opacity: loading ? 0.6 : 1,
                         includeFontPadding: false,
                     }}
                 >

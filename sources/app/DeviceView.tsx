@@ -82,19 +82,11 @@ export const DeviceView = React.memo((props: { device: BluetoothRemoteGATTServer
             const path = `photos/${Date.now()}.jpg`;
             const blob = new Blob([rotated], { type: 'image/jpeg' });
             const { error: upErr } = await supabase.storage.from('photos').upload(path, blob);
-            if (upErr) {
-                console.error('Supabase storage upload error:', upErr);
-                return;
-            }
+            if (upErr) { console.error(upErr); return; }
             const { data, error: insErr } = await supabase.from('photos').insert({ storage_path: path }).select().single();
-            if (insErr) {
-                console.error('Supabase photos insert error:', insErr);
-                return;
-            }
+            if (insErr) { console.error(insErr); return; }
             lastPhotoId.current = data?.id ?? null;
-        } catch (e) {
-            console.error('onRotated persistence error:', e);
-        }
+        } catch (e) { console.error(e); }
     }, []);
 
     const [subscribed, photos] = usePhotos(props.device, onRotated);
@@ -104,9 +96,7 @@ export const DeviceView = React.memo((props: { device: BluetoothRemoteGATTServer
             if (lastPhotoId.current) {
                 try {
                     await supabase.from('photos').update({ caption: description }).eq('id', lastPhotoId.current);
-                } catch (e) {
-                    console.error('caption update error:', e);
-                }
+                } catch (e) { console.error(e); }
             }
         };
         return a;
@@ -130,48 +120,60 @@ export const DeviceView = React.memo((props: { device: BluetoothRemoteGATTServer
     }, [photos]);
 
     return (
-        <View style={{ flex: 1, flexDirection: 'column', paddingHorizontal: 20, gap: 12 }}>
-            {/* ---- Status bar ---- */}
+        <View style={{ flex: 1, flexDirection: 'column', paddingHorizontal: 20, gap: 12, paddingTop: 12 }}>
+            {/* ---- Status bar — pencil-border card, subtle tilt ---- */}
             <View
                 style={{
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    backgroundColor: Theme.surfaceAlt,
-                    borderRadius: Theme.radiusMd,
-                    padding: 12,
-                    borderWidth: 1,
+                    backgroundColor: Theme.surface,
+                    borderRadius: Theme.radiusSm,
+                    padding: 14,
+                    borderWidth: 2,
                     borderColor: Theme.border,
-                    marginTop: 8,
+                    boxShadow: `3px 3px 0 0 ${Theme.border}`,
+                    transform: [{ rotate: '-0.4deg' }],
                 }}
             >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                     <View
                         style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: 4,
+                            width: 10,
+                            height: 10,
+                            borderRadius: 5,
                             backgroundColor: subscribed ? Theme.success : Theme.warning,
+                            borderWidth: 1.5,
+                            borderColor: Theme.border,
                         }}
                     />
-                    <Text style={{ color: Theme.textSoft, fontSize: 13, fontWeight: '600' }}>
+                    <Text style={{ color: Theme.text, fontSize: 13, fontFamily: Theme.fontBody, fontWeight: '600' }}>
                         {subscribed ? 'Connected — capturing every 5s' : 'Connecting...'}
                     </Text>
                 </View>
                 <View style={{ flexDirection: 'row', gap: 16 }}>
-                    <Text style={{ color: Theme.textMuted, fontSize: 12 }}>
-                        Photos: <Text style={{ color: Theme.accent, fontWeight: '700' }}>{photos.length}</Text>
+                    <Text style={{ color: Theme.textMuted, fontFamily: Theme.fontMono, fontSize: 12 }}>
+                        <Text style={{ color: Theme.accent }}>{photos.length}</Text> photos
                     </Text>
-                    <Text style={{ color: Theme.textMuted, fontSize: 12 }}>
-                        Described: <Text style={{ color: Theme.accentRight, fontWeight: '700' }}>{processedPhotos.current.length}</Text>
+                    <Text style={{ color: Theme.textMuted, fontFamily: Theme.fontMono, fontSize: 12 }}>
+                        <Text style={{ color: Theme.textSoft }}>{processedPhotos.current.length}</Text> described
                     </Text>
                 </View>
             </View>
 
-            {/* ---- Recent photo strip ---- */}
+            {/* ---- Recent captures strip ---- */}
             {photos.length > 0 && (
                 <View>
-                    <Text style={{ color: Theme.textSoft, fontSize: 12, fontWeight: '600', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
+                    <Text style={{
+                        fontFamily: Theme.fontDisplay,
+                        fontSize: 12,
+                        letterSpacing: 1,
+                        color: Theme.accent,
+                        textTransform: 'uppercase',
+                        fontWeight: '700',
+                        marginBottom: 8,
+                        marginLeft: 2,
+                    }}>
                         Recent captures
                     </Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -180,11 +182,12 @@ export const DeviceView = React.memo((props: { device: BluetoothRemoteGATTServer
                                 <Image
                                     key={index}
                                     style={{
-                                        width: 72,
-                                        height: 72,
-                                        borderRadius: Theme.radiusMd,
+                                        width: 64,
+                                        height: 64,
+                                        borderRadius: Theme.radiusImage,
                                         borderWidth: 2,
                                         borderColor: Theme.border,
+                                        boxShadow: `2px 2px 0 0 ${Theme.border}`,
                                     }}
                                     source={{ uri: toBase64Image(photo) }}
                                 />
@@ -194,111 +197,144 @@ export const DeviceView = React.memo((props: { device: BluetoothRemoteGATTServer
                 </View>
             )}
 
-            {/* ---- AI description (if available) ---- */}
+            {/* ---- Scene description card ---- */}
             {agentState.lastDescription && !agentState.answer && (
                 <View
                     style={{
-                        backgroundColor: Theme.surfaceAlt,
-                        borderRadius: Theme.radiusXl,
+                        backgroundColor: Theme.surface,
+                        borderRadius: Theme.radiusCard,
                         borderWidth: 2,
                         borderColor: Theme.border,
+                        borderLeftWidth: 5,
+                        borderLeftColor: Theme.accent,
                         padding: 16,
+                        boxShadow: `4px 4px 0 0 ${Theme.border}`,
                     }}
                 >
-                    <Text style={{ color: Theme.accent, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
-                        Scene
+                    <Text style={{
+                        fontFamily: Theme.fontDisplay,
+                        fontSize: 11,
+                        letterSpacing: 1,
+                        color: Theme.accent,
+                        textTransform: 'uppercase',
+                        fontWeight: '700',
+                        marginBottom: 6,
+                    }}>
+                        What the AI sees
                     </Text>
-                    <Text style={{ color: Theme.text, fontSize: 15, lineHeight: 22 }}>
+                    <Text style={{
+                        color: Theme.text,
+                        fontSize: 15,
+                        lineHeight: 23,
+                        fontFamily: Theme.fontBody,
+                    }}>
                         {agentState.lastDescription}
                     </Text>
                 </View>
             )}
 
-            {/* ---- Answer card ---- */}
+            {/* ---- Answer card — dashed border, marker accent ---- */}
             {agentState.answer && !agentState.loading && (
                 <View
                     style={{
                         backgroundColor: Theme.surface,
-                        borderRadius: Theme.radiusXl,
+                        borderRadius: Theme.radiusCard,
                         borderWidth: 2,
                         borderColor: Theme.accent,
-                        borderLeftWidth: 4,
-                        borderLeftColor: Theme.accent,
+                        borderStyle: 'dashed',
                         padding: 16,
-                        ...Theme.shadowCard,
+                        boxShadow: `4px 4px 0 0 ${Theme.accent}`,
+                        transform: [{ rotate: '0.5deg' }],
                     }}
                 >
-                    <Text style={{ color: Theme.accent, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+                    <Text style={{
+                        fontFamily: Theme.fontDisplay,
+                        fontSize: 11,
+                        letterSpacing: 1,
+                        color: Theme.accent,
+                        textTransform: 'uppercase',
+                        fontWeight: '700',
+                        marginBottom: 8,
+                    }}>
                         Answer
                     </Text>
-                    <Text style={{ color: Theme.text, fontSize: 16, lineHeight: 24 }}>
+                    <Text style={{
+                        color: Theme.text,
+                        fontSize: 16,
+                        lineHeight: 25,
+                        fontFamily: Theme.fontBody,
+                    }}>
                         {agentState.answer}
                     </Text>
                 </View>
             )}
 
-            {/* ---- Loading indicator ---- */}
+            {/* ---- Loading ---- */}
             {agentState.loading && (
-                <View
-                    style={{
-                        flex: 1,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        gap: 12,
-                    }}
-                >
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 14 }}>
                     <ActivityIndicator size="large" color={Theme.accent} />
-                    <Text style={{ color: Theme.textSoft, fontSize: 14 }}>
+                    <Text style={{
+                        color: Theme.textSoft,
+                        fontSize: 15,
+                        fontFamily: Theme.fontBody,
+                    }}>
                         Analyzing scenes...
                     </Text>
                 </View>
             )}
 
-            {/* ---- Spacer ---- */}
             <View style={{ flex: 1 }} />
 
             {/* ---- Question input ---- */}
             <View
                 style={{
                     backgroundColor: Theme.surface,
-                    borderRadius: Theme.radiusXl,
+                    borderRadius: Theme.radiusCard,
                     borderWidth: 2,
                     borderColor: Theme.border,
                     padding: 12,
-                    marginBottom: 16,
+                    marginBottom: 20,
+                    boxShadow: `3px 3px 0 0 ${Theme.border}`,
                 }}
             >
                 <TextInput
                     style={{
                         color: Theme.text,
-                        fontSize: 17,
-                        padding: 8,
-                        backgroundColor: Theme.surfaceAlt,
-                        borderRadius: Theme.radiusMd,
-                        borderWidth: 1,
-                        borderColor: Theme.borderBright,
+                        fontSize: 16,
+                        fontFamily: Theme.fontBody,
+                        padding: 10,
+                        backgroundColor: Theme.surfaceAged,
+                        borderRadius: Theme.radiusInput,
+                        borderWidth: 2,
+                        borderColor: Theme.border,
                     }}
                     placeholder="Ask about what you're seeing..."
                     placeholderTextColor={Theme.textMuted}
                     readOnly={agentState.loading || photos.length === 0}
                     onSubmitEditing={async (e) => {
                         const question = e.nativeEvent.text;
+                        // clear handled by React
                         await agent.answer(question);
                         const state = agent.getState();
                         if (lastPhotoId.current && state?.answer) {
-                            try {
-                                await supabase.from('chats').insert({
-                                    photo_id: lastPhotoId.current,
-                                    question,
-                                    answer: state.answer,
-                                });
-                            } catch (err) {
-                                console.error('chat insert error:', err);
-                            }
+                            await supabase.from('chats').insert({
+                                photo_id: lastPhotoId.current,
+                                question,
+                                answer: state.answer,
+                            }).then(null, console.error);
                         }
                     }}
                 />
             </View>
+            {/* Connect footnote */}
+            {!subscribed && (
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
+                    <ActivityIndicator size="large" color={Theme.accent} />
+                    <Text style={{ color: Theme.textSoft, fontSize: 14, fontFamily: Theme.fontBody }}>
+                        Connecting to XIAO ESP32S3...
+                    </Text>
+                </View>
+            )}
         </View>
     );
 });

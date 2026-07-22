@@ -1,84 +1,66 @@
+/* ================================================================
+   OpenGlass — Hand-Drawn Boutique Aesthetic
+   Inspired by LooksMax AI design system:
+     • Warm paper background w/ dot texture
+     • Pencil-black borders (2px solid)
+     • Hard offset shadows (no blur, solid)
+     • Red marker accent (#ff4d4d)
+     • Post-it yellow CTAs
+     • Dashed borders for secondary
+     • Wobbly radii, slight card tilts
+     • Eyebrow labels, scribble underlines
+   ================================================================ */
+
 export const Theme = {
-    /* ---- Dark paper-inspired backdrop ---- */
-    background: '#1a1a2e',
-    surface: '#222240',
-    surfaceAlt: '#2a2a48',
+    /* Background scale — warm paper */
+    background: '#fdfbf7',
+    surface: '#ffffff',
+    surfaceAged: '#f5efe2',
+    surfaceDark: '#e9e0cf',
 
-    /* ---- Pencil ink for text ---- */
-    text: '#ebeae6',
-    textSoft: '#9d9bb8',
-    textMuted: '#6b6988',
+    /* Pencil ink for text */
+    text: '#2d2d2d',
+    textSoft: '#4a4a4a',
+    textMuted: '#6b6b6b',
 
-    /* ---- Vibran accents — glasses AI lens colors ---- */
-    accent: '#6C63FF',       // Left lens purple
-    accentRight: '#3F8CFF',  // Right lens blue
-    accentGlow: 'rgba(108, 99, 255, 0.18)',
-    secondary: '#FF6B6B',
+    /* Marker red — single vibrant accent (no purple/blue/gradients) */
+    accent: '#ff4d4d',
+    accentDeep: '#e53838',
 
-    /* ---- Status ---- */
-    success: '#34D399',
-    warning: '#FBBF24',
-    error: '#F87171',
+    /* Post-it yellow — CTAs + highlights */
+    postit: '#fff9c4',
+    postitDeep: '#fde68a',
 
-    /* ---- Borders ---- */
-    border: '#333355',
-    borderBright: '#4a4a7a',
+    /* Ballpoint blue — input focus rings only */
+    ballpoint: '#2d5da1',
 
-    /* ---- Shadows (React Native Web: shadowColor/Offset/Opacity/Radius) ---- */
-    shadowCard: {
-        shadowColor: '#6C63FF',
-        shadowOffset: { width: 4, height: 4 },
-        shadowOpacity: 0.12,
-        shadowRadius: 0,
-    } as const,
-    shadowHard: {
-        shadowColor: 'rgba(255,255,255,0.05)',
-        shadowOffset: { width: 4, height: 4 },
-        shadowOpacity: 1,
-        shadowRadius: 0,
-    } as const,
+    /* Status */
+    success: '#059669',
+    warning: '#d97706',
+    error: '#dc2626',
 
-    /* ---- Radii ---- */
-    radiusSm: 10,
-    radiusMd: 14,
-    radiusLg: 20,
-    radiusXl: 28,
+    /* Borders */
+    border: '#2d2d2d',
+    borderSoft: '#4a4a4a',
+
+    /* Hard offset shadow — solid, no blur (React Native Web compatible) */
+    shadowSm: 3 as const,
+    shadowMd: 5 as const,
+    shadowLg: 8 as const,
+
+    /* Radii (React Native Web only takes single number) */
+    radiusSm: 14,
+    radiusMd: 20,
+    radiusLg: 28,
+    radiusXl: 38,
     radiusPill: 9999,
-};
+    radiusInput: 14,
+    radiusButton: 16,
+    radiusCard: 22,
+    radiusImage: 16,
 
-export const ThemeApp = {
-    button: {
-        text: '#ffffff',
-        bg: Theme.accent,
-        bgPressed: '#5a52e0',
-        border: Theme.accent,
-    },
-    buttonOutline: {
-        text: Theme.accent,
-        bg: 'transparent',
-        bgPressed: 'rgba(108,99,255,0.10)',
-        border: Theme.accent,
-    },
-    buttonGhost: {
-        text: Theme.textSoft,
-        bg: 'transparent',
-        bgPressed: 'rgba(255,255,255,0.05)',
-        border: 'transparent',
-    },
-    input: {
-        text: Theme.text,
-        bg: Theme.surfaceAlt,
-        placeholder: Theme.textMuted,
-        border: Theme.borderBright,
-    },
-    card: {
-        bg: Theme.surfaceAlt,
-        border: Theme.border,
-        shadow: Theme.shadowCard,
-        radius: Theme.radiusXl,
-    },
-    tag: {
-        bg: Theme.surface,
-        text: Theme.accent,
-    },
+    /* Font families */
+    fontDisplay: '"Kalam", "PatrickHand", cursive, system-ui, sans-serif',
+    fontBody: '"PatrickHand", system-ui, sans-serif',
+    fontMono: '"JetBrains Mono", monospace',
 };

@@ -34,49 +34,43 @@ export const History = React.memo(() => {
             if (error) throw error;
             setPhotos((data ?? []) as unknown as PhotoRow[]);
         } catch (e: any) {
-            console.error('History fetch error:', e);
-            setError(e?.message ?? 'Failed to load history');
+            console.error(e);
+            setError(e?.message ?? 'Failed to load gallery');
         } finally {
             setLoading(false);
         }
     }, []);
 
-    React.useEffect(() => {
-        refresh();
-    }, [refresh]);
+    React.useEffect(() => { refresh(); }, [refresh]);
 
     return (
         <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 12 }}>
-            {/* ---- Header ---- */}
-            <View
-                style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: 16,
-                }}
-            >
+            {/* ---- Gallery header — eyebrown + title ---- */}
+            <View style={{
+                flexDirection: 'row',
+                alignItems: 'flex-end',
+                justifyContent: 'space-between',
+                marginBottom: 18,
+            }}>
                 <View>
-                    <Text
-                        style={{
-                            color: Theme.accent,
-                            fontSize: 11,
-                            fontWeight: '700',
-                            textTransform: 'uppercase',
-                            letterSpacing: 1.5,
-                        }}
-                    >
+                    <Text style={{
+                        fontFamily: Theme.fontDisplay,
+                        fontSize: 12,
+                        letterSpacing: 1.2,
+                        color: Theme.accent,
+                        textTransform: 'uppercase',
+                        fontWeight: '700',
+                    }}>
                         Gallery
                     </Text>
-                    <Text
-                        style={{
-                            color: Theme.text,
-                            fontSize: 24,
-                            fontWeight: '800',
-                            letterSpacing: -0.3,
-                            marginTop: 2,
-                        }}
-                    >
+                    <Text style={{
+                        color: Theme.text,
+                        fontFamily: Theme.fontDisplay,
+                        fontSize: 26,
+                        fontWeight: '700',
+                        letterSpacing: -0.4,
+                        marginTop: 2,
+                    }}>
                         Your Captures
                     </Text>
                 </View>
@@ -89,149 +83,173 @@ export const History = React.memo(() => {
                 />
             </View>
 
-            {/* ---- Error ---- */}
+            {/* ---- Error alert — dashed marker border ---- */}
             {error && (
-                <View
-                    style={{
-                        backgroundColor: Theme.surfaceAlt,
-                        borderRadius: Theme.radiusMd,
-                        borderWidth: 1,
-                        borderColor: Theme.error,
-                        padding: 12,
-                        marginBottom: 12,
-                    }}
-                >
-                    <Text style={{ color: Theme.error, fontSize: 13 }}>{error}</Text>
+                <View style={{
+                    backgroundColor: Theme.surface,
+                    borderRadius: Theme.radiusSm,
+                    borderWidth: 2,
+                    borderColor: Theme.error,
+                    borderStyle: 'dashed',
+                    padding: 12,
+                    marginBottom: 12,
+                }}>
+                    <Text style={{ color: Theme.error, fontSize: 13, fontFamily: Theme.fontBody }}>{error}</Text>
                 </View>
             )}
 
-            {/* ---- Loading ---- */}
+            {/* ---- Loading state ---- */}
             {loading && photos.length === 0 && (
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
                     <ActivityIndicator size="large" color={Theme.accent} />
-                    <Text style={{ color: Theme.textSoft, fontSize: 14 }}>Loading gallery...</Text>
+                    <Text style={{ color: Theme.textSoft, fontFamily: Theme.fontBody, fontSize: 14 }}>
+                        Loading gallery...
+                    </Text>
                 </View>
             )}
 
-            {/* ---- Empty ---- */}
+            {/* ---- Empty state ---- */}
             {!loading && !error && photos.length === 0 && (
-                <View
-                    style={{
-                        flex: 1,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        gap: 8,
-                    }}
-                >
-                    <Text style={{ color: Theme.textMuted, fontSize: 16 }}>
+                <View style={{
+                    flex: 1,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: 8,
+                }}>
+                    <Text style={{ color: Theme.textMuted, fontSize: 16, fontFamily: Theme.fontBody }}>
                         No photos captured yet.
                     </Text>
-                    <Text style={{ color: Theme.textMuted, fontSize: 13, opacity: 0.6 }}>
-                        Connect your glasses and start capturing to see them here.
+                    <Text style={{ color: Theme.textMuted, fontSize: 13, fontFamily: Theme.fontBody, opacity: 0.6 }}>
+                        Connect your glasses to start seeing captures here.
                     </Text>
                 </View>
             )}
 
-            {/* ---- Photo grid ---- */}
+            {/* ---- Photo feed ---- */}
             <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-                <View style={{ gap: 16, paddingBottom: 32 }}>
+                <View style={{ gap: 18, paddingBottom: 32 }}>
                     {photos.map((p, idx) => {
                         const url = supabase.storage.from('photos').getPublicUrl(p.storage_path).data.publicUrl;
                         const chats = Array.isArray(p.chats) ? p.chats : [];
-                        const tilt = idx % 2 === 0;
+                        const tilt = idx % 2 === 0 ? '-1deg' : '1deg';
+
                         return (
-                            <View
-                                key={p.id}
-                                style={{
-                                    backgroundColor: Theme.surfaceAlt,
-                                    borderRadius: Theme.radiusXl,
-                                    borderWidth: 2,
-                                    borderColor: Theme.border,
-                                    padding: 14,
-                                    ...Theme.shadowCard,
-                                    // Slight tilt alternating
-                                    transform: tilt ? [{ rotate: '-0.6deg' }] : [{ rotate: '0.6deg' }],
-                                }}
-                            >
-                                {/* Image */}
+                            <View key={p.id} style={{
+                                backgroundColor: Theme.surface,
+                                borderRadius: Theme.radiusCard,
+                                borderWidth: 2,
+                                borderColor: Theme.border,
+                                padding: 16,
+                                boxShadow: `4px 4px 0 0 ${Theme.border}`,
+                                transform: [{ rotate: tilt }],
+                            }}>
+                                {/* Photo */}
                                 <Image
                                     source={{ uri: url }}
                                     style={{
                                         width: '100%',
-                                        height: 220,
-                                        borderRadius: Theme.radiusMd,
+                                        height: 240,
+                                        borderRadius: Theme.radiusImage,
                                         borderWidth: 2,
-                                        borderColor: Theme.borderBright,
-                                        marginBottom: 10,
+                                        borderColor: Theme.border,
+                                        marginBottom: 12,
+                                        boxShadow: `2px 2px 0 0 ${Theme.border}`,
                                     }}
                                     resizeMode="cover"
                                 />
 
-                                {/* Meta row */}
-                                <View
-                                    style={{
-                                        flexDirection: 'row',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                        marginBottom: 8,
-                                    }}
-                                >
-                                    <Text style={{ color: Theme.textMuted, fontSize: 12 }}>
+                                {/* Meta row: date + Q&A badge */}
+                                <View style={{
+                                    flexDirection: 'row',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    marginBottom: 10,
+                                }}>
+                                    <Text style={{
+                                        color: Theme.textMuted,
+                                        fontFamily: Theme.fontMono,
+                                        fontSize: 12,
+                                    }}>
                                         {p.captured_at ? new Date(p.captured_at).toLocaleString() : ''}
                                     </Text>
-                                    <View
-                                        style={{
-                                            backgroundColor: Theme.surface,
+                                    {chats.length > 0 && (
+                                        <View style={{
+                                            backgroundColor: Theme.postit,
                                             borderRadius: Theme.radiusPill,
+                                            borderWidth: 1.5,
+                                            borderColor: Theme.text,
                                             paddingHorizontal: 10,
-                                            paddingVertical: 4,
-                                            borderWidth: 1,
-                                            borderColor: Theme.accent,
-                                        }}
-                                    >
-                                        <Text style={{ color: Theme.accent, fontSize: 11, fontWeight: '700' }}>
-                                            {chats.length > 0 ? `${chats.length} Q&A` : 'No questions'}
-                                        </Text>
-                                    </View>
+                                            paddingVertical: 3,
+                                        }}>
+                                            <Text style={{
+                                                color: Theme.text,
+                                                fontFamily: Theme.fontDisplay,
+                                                fontSize: 11,
+                                                fontWeight: '700',
+                                            }}>
+                                                {chats.length} Q&A
+                                            </Text>
+                                        </View>
+                                    )}
                                 </View>
 
                                 {/* Caption */}
-                                <Text
-                                    style={{
-                                        color: Theme.text,
-                                        fontSize: 15,
-                                        lineHeight: 22,
-                                        marginBottom: chats.length > 0 ? 10 : 0,
-                                    }}
-                                >
+                                <Text style={{
+                                    color: Theme.text,
+                                    fontFamily: Theme.fontBody,
+                                    fontSize: 15,
+                                    lineHeight: 23,
+                                    marginBottom: chats.length > 0 ? 12 : 0,
+                                }}>
                                     {p.caption ?? 'Processing...'}
                                 </Text>
 
-                                {/* Chats */}
+                                {/* Q&A pairs — dashed border separator */}
                                 {chats.length > 0 && (
-                                    <View
-                                        style={{
-                                            borderTopWidth: 1,
-                                            borderTopColor: Theme.borderBright,
-                                            paddingTop: 10,
-                                            gap: 8,
-                                        }}
-                                    >
+                                    <View style={{
+                                        borderTopWidth: 2,
+                                        borderTopColor: Theme.border,
+                                        borderStyle: 'dashed',
+                                        paddingTop: 10,
+                                        gap: 10,
+                                    }}>
                                         {chats.map((c, i) => (
-                                            <View key={i} style={{ flexDirection: 'column', gap: 2 }}>
-                                                <View style={{ flexDirection: 'row', gap: 6 }}>
-                                                    <Text style={{ color: Theme.accent, fontSize: 12, fontWeight: '700' }}>
+                                            <View key={i} style={{ gap: 4 }}>
+                                                <View style={{ flexDirection: 'row', gap: 6, alignItems: 'flex-start' }}>
+                                                    <Text style={{
+                                                        color: Theme.accent,
+                                                        fontFamily: Theme.fontDisplay,
+                                                        fontSize: 12,
+                                                        fontWeight: '700',
+                                                    }}>
                                                         Q:
                                                     </Text>
-                                                    <Text style={{ color: Theme.textSoft, fontSize: 13, flex: 1 }}>
+                                                    <Text style={{
+                                                        color: Theme.text,
+                                                        fontFamily: Theme.fontBody,
+                                                        fontSize: 14,
+                                                        flex: 1,
+                                                        lineHeight: 20,
+                                                    }}>
                                                         {c.question ?? ''}
                                                     </Text>
                                                 </View>
-                                                <View style={{ flexDirection: 'row', gap: 6 }}>
-                                                    <Text style={{ color: Theme.accentRight, fontSize: 12, fontWeight: '700' }}>
+                                                <View style={{ flexDirection: 'row', gap: 6, alignItems: 'flex-start' }}>
+                                                    <Text style={{
+                                                        color: Theme.textSoft,
+                                                        fontFamily: Theme.fontDisplay,
+                                                        fontSize: 12,
+                                                        fontWeight: '700',
+                                                    }}>
                                                         A:
                                                     </Text>
-                                                    <Text style={{ color: Theme.text, fontSize: 13, flex: 1 }}>
+                                                    <Text style={{
+                                                        color: Theme.textSoft,
+                                                        fontFamily: Theme.fontBody,
+                                                        fontSize: 14,
+                                                        flex: 1,
+                                                        lineHeight: 20,
+                                                    }}>
                                                         {c.answer ?? ''}
                                                     </Text>
                                                 </View>

@@ -11,66 +11,81 @@ export const Main = React.memo(() => {
     const [view, setView] = React.useState<'live' | 'history'>('live');
 
     return (
-        <SafeAreaView style={styles.container}>
-            {/* ---- Header ---- */}
-            <View style={styles.header}>
-                <View style={styles.brand}>
-                    <View style={styles.logo}>
-                        <Text style={styles.logoText}>OG</Text>
-                    </View>
-                    <View>
-                        <Text style={styles.brandName}>OpenGlass</Text>
-                        <Text style={styles.brandTag}>AI Vision Companion</Text>
+        <View style={{ flex: 1 }}>
+            <SafeAreaView style={styles.container}>
+                {/* ---- Header ---- */}
+                <View style={styles.header}>
+                    {/* Brand */}
+                    <TouchableOpacity onPress={() => setView('live')} activeOpacity={0.7}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <View style={styles.logo}>
+                                <Text style={styles.logoText}>OG</Text>
+                            </View>
+                            <View>
+                                <Text style={styles.brandName}>OpenGlass</Text>
+                                <Text style={styles.eyebrow}>AI · Vision · Companion</Text>
+                            </View>
+                        </View>
+                    </TouchableOpacity>
+
+                    {/* Tabs — pill-style, pencil-border, paper-textured */}
+                    <View style={styles.tabs}>
+                        <TouchableOpacity
+                            onPress={() => setView('live')}
+                            style={[styles.tab, view === 'live' && styles.tabActive]}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={[styles.tabText, view === 'live' && styles.tabTextActive]}>
+                                Live
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => setView('history')}
+                            style={[styles.tab, view === 'history' && styles.tabActive]}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={[styles.tabText, view === 'history' && styles.tabTextActive]}>
+                                History
+                            </Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
 
-                <View style={styles.tabs}>
-                    <TouchableOpacity
-                        onPress={() => setView('live')}
-                        style={[styles.tab, view === 'live' && styles.tabActive]}
-                        activeOpacity={0.7}
-                    >
-                        <Text style={[styles.tabText, view === 'live' && styles.tabTextActive]}>
-                            Live
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        onPress={() => setView('history')}
-                        style={[styles.tab, view === 'history' && styles.tabActive]}
-                        activeOpacity={0.7}
-                    >
-                        <Text style={[styles.tabText, view === 'history' && styles.tabTextActive]}>
-                            History
-                        </Text>
-                    </TouchableOpacity>
+                {/* ---- Body ---- */}
+                <View style={{ flex: 1 }}>
+                    {view === 'live' && !device && (
+                        <View style={styles.connectScreen}>
+                            <View style={{ alignItems: 'center', gap: 8 }}>
+                                <Text style={styles.eyebrow}>Smart Glasses · Reimagined</Text>
+                                <Text style={styles.connectTitle}>See the world through AI eyes</Text>
+                                <Text style={styles.connectSubtitle}>
+                                    Pair your XIAO ESP32S3 Sense board via Bluetooth. Photos are captured every 5
+                                    seconds, described by a vision LLM, and stored for you to search and ask
+                                    questions about anything you see.
+                                </Text>
+                            </View>
+                            <RoundButton
+                                title="Pair Device"
+                                action={connectDevice}
+                                size="lg"
+                                variant="marker"
+                            />
+<Text style={styles.connectNote}>
+                        Requires desktop Chrome/Edge. iOS not supported.
+                    </Text>
+                        </View>
+                    )}
+
+                    {view === 'live' && device && <DeviceView device={device} />}
+                    {view === 'history' && <History />}
                 </View>
-            </View>
-
-            {/* ---- Body ---- */}
-            <View style={{ flex: 1 }}>
-                {view === 'live' && !device && (
-                    <View style={styles.connectScreen}>
-                        <Text style={styles.connectTitle}>Connect your glasses</Text>
-                        <Text style={styles.connectSubtitle}>
-                            Pair your XIAO ESP32S3 Sense board via Bluetooth to start seeing the world through AI.
-                        </Text>
-                        <RoundButton
-                            title="Connect Device"
-                            action={connectDevice}
-                            size="lg"
-                            variant="primary"
-                        />
-                    </View>
-                )}
-
-                {view === 'live' && device && <DeviceView device={device} />}
-                {view === 'history' && <History />}
-            </View>
-        </SafeAreaView>
+            </SafeAreaView>
+        </View>
     );
 });
 
 const styles = StyleSheet.create({
+    /* ---- Layout ---- */
     container: {
         flex: 1,
         backgroundColor: Theme.background,
@@ -83,93 +98,106 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 20,
-        paddingVertical: 12,
+        paddingVertical: 14,
         borderBottomWidth: 2,
         borderBottomColor: Theme.border,
         backgroundColor: Theme.surface,
-    },
-    brand: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
+        boxShadow: `3px 3px 0 0 ${Theme.border}`,
     },
     logo: {
-        width: 40,
-        height: 40,
-        borderRadius: Theme.radiusMd,
+        width: 42,
+        height: 42,
+        borderRadius: Theme.radiusSm,
         backgroundColor: Theme.accent,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 2,
-        borderColor: Theme.accent,
-        ...Theme.shadowHard,
+        borderColor: Theme.border,
+        boxShadow: `3px 3px 0 0 ${Theme.border}`,
     },
     logoText: {
         color: '#ffffff',
         fontSize: 17,
-        fontWeight: '900',
+        fontFamily: Theme.fontDisplay,
+        fontWeight: '700',
         letterSpacing: -0.5,
     },
     brandName: {
         color: Theme.text,
         fontSize: 18,
-        fontWeight: '800',
+        fontFamily: Theme.fontDisplay,
+        fontWeight: '700',
         letterSpacing: -0.3,
     },
-    brandTag: {
+
+    /* ---- Eyebrow label (LooksMax style) ---- */
+    eyebrow: {
+        fontFamily: Theme.fontDisplay,
+        fontSize: 12,
+        letterSpacing: 1.2,
         color: Theme.accent,
-        fontSize: 11,
-        fontWeight: '600',
-        letterSpacing: 0.5,
         textTransform: 'uppercase',
+        fontWeight: '700',
     },
 
     /* ---- Tabs ---- */
     tabs: {
         flexDirection: 'row',
-        backgroundColor: Theme.surfaceAlt,
+        backgroundColor: Theme.surfaceAged,
         borderRadius: Theme.radiusPill,
+        borderWidth: 2,
+        borderColor: Theme.border,
         padding: 3,
     },
     tab: {
         paddingVertical: 8,
-        paddingHorizontal: 18,
+        paddingHorizontal: 20,
         borderRadius: Theme.radiusPill,
     },
     tabActive: {
         backgroundColor: Theme.accent,
-        ...Theme.shadowHard,
+        boxShadow: `3px 3px 0 0 ${Theme.border}`,
     },
     tabText: {
         color: Theme.textSoft,
         fontSize: 14,
+        fontFamily: Theme.fontDisplay,
         fontWeight: '700',
     },
     tabTextActive: {
         color: '#ffffff',
     },
 
-    /* ---- Connect screen ---- */
+    /* ---- Connect screen (hero layout, LooksMax inspired) ---- */
     connectScreen: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
         paddingHorizontal: 40,
-        gap: 16,
+        gap: 20,
     },
     connectTitle: {
         color: Theme.text,
-        fontSize: 28,
-        fontWeight: '800',
-        letterSpacing: -0.4,
+        fontSize: 32,
+        fontFamily: Theme.fontDisplay,
+        fontWeight: '700',
+        letterSpacing: -0.5,
+        lineHeight: 36,
     },
     connectSubtitle: {
         color: Theme.textSoft,
-        fontSize: 15,
+        fontSize: 16,
+        fontFamily: Theme.fontBody,
         fontWeight: '400',
         textAlign: 'center',
-        lineHeight: 22,
-        maxWidth: 460,
-        marginBottom: 8,
+        lineHeight: 24,
+        maxWidth: 520,
+    },
+    connectNote: {
+        color: Theme.textMuted,
+        fontSize: 12,
+        fontFamily: Theme.fontBody,
+        textAlign: 'center',
+        marginTop: 4,
     },
 });
