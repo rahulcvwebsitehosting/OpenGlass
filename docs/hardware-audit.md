@@ -115,7 +115,9 @@ Local checks during this audit:
 - Node tests: **23 passed**, including a real JPEG split into minimum/larger BLE payload sizes, damaged packet handling, agent retry/context bounds, exact-photo caption persistence, mock-provider success/failure and GATT cleanup.
 - Browser subscription fix: failed capture-control writes now release an already-started notification stream. A regression test verifies no later photo delivery or duplicate cleanup.
 - Web export: checked with `npm run build:web`; see the repository workflow for a reproducible result.
-- Firmware: the verification workflow installs Arduino CLI 1.2.2, Espressif core 2.0.17 and AF library 0.1.1, then compiles the exact FQBN in the firmware guide.
+- Firmware: **compiled successfully** with Arduino CLI 1.2.2, Espressif core 2.0.17 and AF library 0.1.1 using the exact FQBN in the firmware guide. The board's supported partition selection is `default_8MB` (not the generic `huge_app` option).
+
+Reproducible evidence: [verification run 39793963595](https://github.com/rahulcvwebsitehosting/OpenGlass/actions/runs/39793963595), code revision `b3f4d806ec4c7040148602c6fd18c43a70300864`. The app job passed TypeScript, all 23 tests and web export; the firmware build linked successfully using **987,329 / 3,342,336 bytes of application storage (29%)** and **48,836 / 327,680 bytes of static RAM (14%)**. These are compile-time figures, not a measurement of heap, PSRAM usage, current or operating temperature.
 
 The workflow is linked from the repository's Actions tab. A passing firmware job proves compilation and linking against that toolchain; it does not prove the delivered sensor, RF link, power path, charging, lens, enclosure or temperature.
 

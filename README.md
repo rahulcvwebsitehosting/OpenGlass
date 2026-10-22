@@ -204,6 +204,8 @@ Add the environment variables from `.env.template` to the Vercel project before 
 
 The hardware audit checks the actual camera pin map, PSRAM requirement, BLE UUIDs, packet sizes, JPEG format, browser lifecycle and server/storage dependencies. Automated checks cover packet reconstruction at minimum/larger MTUs, malformed frames, subscription cleanup, AI error recovery and mock-provider requests. CI compiles the pinned Sense firmware and exports the web app.
 
+Verified on 22 October 2026: **TypeScript passed, 23/23 tests passed, web export passed, and the Sense firmware compiled** in [this verification run](https://github.com/rahulcvwebsitehosting/OpenGlass/actions/runs/39793963595) for code revision `b3f4d806ec4c7040148602c6fd18c43a70300864`. The firmware uses 987,329 / 3,342,336 bytes of application storage and 48,836 bytes of static RAM; runtime/PSRAM use still requires hardware measurement.
+
 **A build pass is not a tested wearable.** No delivered board/camera/battery/frame has been electrically or mechanically qualified in this review. BLE reliability on the chosen phone, autofocus sharpness, current peaks, runtime, charging, enclosure fit and skin-side temperature require the physical acceptance tests. Do not treat this shopping list as a production release or an all-day runtime promise.
 
 ## Contributing
