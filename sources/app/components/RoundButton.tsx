@@ -87,7 +87,7 @@ export const RoundButton = React.memo((props: {
         if (props.onPress) { props.onPress(); return; }
         if (props.action) {
             setBusy(true);
-            props.action().finally(() => setBusy(false));
+            props.action().catch(error => console.error('Button action failed', error)).finally(() => setBusy(false));
         }
     }, [props.onPress, props.action]);
 

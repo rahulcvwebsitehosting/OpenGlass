@@ -7,7 +7,7 @@ import { DeviceView } from './DeviceView';
 import { History } from './History';
 
 export const Main = React.memo(() => {
-    const [device, connectDevice] = useDevice();
+    const [device, connectDevice, connectionError] = useDevice();
     const [view, setView] = React.useState<'live' | 'history'>('live');
 
     return (
@@ -64,6 +64,7 @@ export const Main = React.memo(() => {
                                     questions about anything you see.
                                 </Text>
                             </View>
+                            {connectionError && <Text accessibilityRole="alert" style={{ color: Theme.error, textAlign: 'center' }}>{connectionError}</Text>}
                             <RoundButton
                                 title="Pair Device"
                                 action={connectDevice}
@@ -76,7 +77,7 @@ export const Main = React.memo(() => {
                         </View>
                     )}
 
-                    {view === 'live' && device && <DeviceView device={device} />}
+                    {device && <View style={{ flex: 1, display: view === 'live' ? 'flex' : 'none' }}><DeviceView key={device.device.id} device={device} /></View>}
                     {view === 'history' && <History />}
                 </View>
             </SafeAreaView>

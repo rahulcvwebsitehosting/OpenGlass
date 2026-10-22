@@ -1,39 +1,45 @@
 import * as React from 'react';
+import { SERVICE_UUID } from './photoProtocol';
 
-export function useDevice(): [BluetoothRemoteGATTServer | null, () => Promise<void>] {
-
-    // Create state
-    let deviceRef = React.useRef<BluetoothRemoteGATTServer | null>(null);
-    let [device, setDevice] = React.useState<BluetoothRemoteGATTServer | null>(null);
-
-    // Create callback
+export function useDevice() {
+    const deviceRef = React.useRef<BluetoothRemoteGATTServer | null>(null);
+    const cleanupRef = React.useRef<() => void>(() => {});
+    const mounted = React.useRef(true);
+    const connecting = React.useRef(false);
+    const [device, setDevice] = React.useState<BluetoothRemoteGATTServer | null>(null);
+    const [error, setError] = React.useState<string | null>(null);
+    React.useEffect(() => {
+        mounted.current = true;
+        return () => { mounted.current = false; cleanupRef.current(); deviceRef.current?.disconnect(); };
+    }, []);
     const doConnect = React.useCallback(async () => {
+        if (connecting.current) return;
+        connecting.current = true;
+        setError(null);
         try {
-
-            // Connect to device
-            let connected = await navigator.bluetooth.requestDevice({
-                filters: [{ name: 'OpenGlass' }],
-                optionalServices: ['19B10000-E8F2-537E-4F6C-D104768A1214'.toLowerCase()],
+            if (typeof navigator === 'undefined' || !navigator.bluetooth || !globalThis.isSecureContext) {
+                throw new Error('Pairing requires Chrome or Edge with Bluetooth enabled, over HTTPS or localhost. Native mobile apps and iOS are not supported.');
+            }
+            const selected = await navigator.bluetooth.requestDevice({
+                filters: [{ name: 'OpenGlass' }], optionalServices: [SERVICE_UUID],
             });
-
-            // Connect to gatt
-            let gatt: BluetoothRemoteGATTServer = await connected.gatt!.connect();
-
-            // Update state
+            if (!selected.gatt) throw new Error('This device does not provide a Bluetooth GATT server.');
+            cleanupRef.current();
+            deviceRef.current?.disconnect();
+            const disconnected = () => {
+                deviceRef.current = null;
+                if (mounted.current) { setDevice(null); setError('Glasses disconnected. Pair again to resume capturing.'); }
+            };
+            selected.addEventListener('gattserverdisconnected', disconnected);
+            cleanupRef.current = () => selected.removeEventListener('gattserverdisconnected', disconnected);
+            const gatt = await selected.gatt.connect();
+            if (!mounted.current) { cleanupRef.current(); gatt.disconnect(); return; }
             deviceRef.current = gatt;
             setDevice(gatt);
-
-            // Reset on disconnect (avoid loosing everything on disconnect)
-            // connected.ongattserverdisconnected = () => {
-            //     deviceRef.current = null;
-            //     setDevice(null);
-            // }
         } catch (e) {
-            // Handle error
-            console.error(e);
-        }
-    }, [device]);
-
-    // Return
-    return [device, doConnect];
+            cleanupRef.current();
+            if (mounted.current && (e as Error).name !== 'NotFoundError') setError((e as Error).message || 'Could not connect to glasses.');
+        } finally { connecting.current = false; }
+    }, []);
+    return [device, doConnect, error] as const;
 }

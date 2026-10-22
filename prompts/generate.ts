@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as progress from 'cli-progress';
 import { imageDescription } from '../sources/agent/imageDescription';
-import { imageBlurry } from '../sources/agent/imageBlurry';
+
 
 (async () => {
 
@@ -40,24 +40,8 @@ import { imageBlurry } from '../sources/agent/imageBlurry';
     await runTest('Description', async (img) => {
         return await imageDescription(img);
     });
-    await runTest('Description (llava-llama3)', async (img) => {
-        return await imageDescription(img);
-    });
-    await runTest('Description (llava:34b-v1.6)', async (img) => {
-        return await imageDescription(img);
-    });
-    await runTest('Description (moondream)', async (img) => {
-        return await imageDescription(img);
-    });
-
-    // console.log(`Run blurry tests`);
-    // for (let i of imageTests) {
-    //     i.outputs += '####Blurry####\n';
-    //     i.outputs += await imageBlurry(i.image) + '\n';
-    // }
-
     // Write outputs
     for (let i of imageTests) {
         fs.writeFileSync(i.path, i.outputs);
     }
-})();
+})().catch(error => { console.error(error.message); process.exitCode = 1; });

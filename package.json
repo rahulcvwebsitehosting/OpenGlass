@@ -9,7 +9,10 @@
     "web": "expo start --web",
     "prebuild": "expo prebuild",
     "build:web": "expo export -p web",
-    "prompts": "ts-node ./prompts/generate.ts"
+    "prompts": "node --require ./tests/register.cjs ./prompts/generate.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --require ./tests/register.cjs --test tests/*.test.cjs",
+    "serve": "node scripts/serve.cjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "^3.2.1",

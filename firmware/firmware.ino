@@ -1,5 +1,7 @@
 #define CAMERA_MODEL_XIAO_ESP32S3
+#include <atomic>
 #include <I2S.h>
+#include <ESP32_OV5640_AF.h>
 #include <BLE2902.h>
 #include <BLEDevice.h>
 #include <BLEUtils.h>
@@ -11,17 +13,16 @@
 
 // Audio
 
-// Uncomment to switch the codec
-// Opus is still under development
-// Mulaw is used with the web app
-// PCM is used with the Friend app
-
-// To use with the web app, comment CODEC_PCM and
-// uncomment CODEC_MULAW
+// Optional audio for other BLE clients. The current browser app uses photos
+// and typed questions only; it does not consume any of these audio codecs.
+// Opus remains experimental. Leave PCM selected for the reference build.
 
 // #define CODEC_OPUS
 // #define CODEC_MULAW
 #define CODEC_PCM
+
+// Browser UI currently consumes photos only. Keep mic available to BLE clients
+// that explicitly subscribe, without blocking or flooding the camera stream.
 
 #ifdef CODEC_OPUS
 
@@ -32,6 +33,7 @@
 
 OpusEncoder *opus_encoder = nullptr;
 
+#define FRAME_SIZE 320
 #define CHANNELS 1
 #define MAX_PACKET_SIZE 1000
 
@@ -64,9 +66,6 @@ OpusEncoder *opus_encoder = nullptr;
 #define FIRMWARE_REVISION_STRING_CHAR_UUID (uint16_t)0x2A26
 #define HARDWARE_REVISION_STRING_CHAR_UUID (uint16_t)0x2A27
 
-// Battery Level Service
-#define BATTERY_SERVICE_UUID (uint16_t)0x180F
-#define BATTERY_LEVEL_CHAR_UUID (uint16_t)0x2A19
 
 // Main Friend Service
 static BLEUUID serviceUUID("19B10000-E8F2-537E-4F6C-D104768A1214");
@@ -79,11 +78,17 @@ BLECharacteristic *audioDataCharacteristic;
 BLECharacteristic *photoDataCharacteristic;
 BLECharacteristic *photoControlCharacteristic;
 
-BLECharacteristic *batteryLevelCharacteristic;
 
 // State
 
-bool connected = false;
+std::atomic<bool> connected{false};
+std::atomic<bool> resetCapture{false};
+std::atomic<int> pendingControl{-1};
+BLEServer *bleServer = nullptr;
+bool cameraReady = false;
+bool microphoneReady = false;
+BLE2902 *audioSubscription = nullptr;
+BLE2902 *photoSubscription = nullptr;
 
 uint16_t audio_frame_count = 0;
 
@@ -95,10 +100,8 @@ size_t sent_photo_bytes = 0;
 size_t sent_photo_frames = 0;
 bool photoDataUploading = false;
 
-uint8_t batteryLevel = 100;
-unsigned long lastBatteryUpdate = 0;
 
-void handlePhotoControl(int8_t controlValue);
+void handlePhotoControl(uint8_t controlValue);
 
 class ServerHandler : public BLEServerCallbacks
 {
@@ -110,6 +113,10 @@ class ServerHandler : public BLEServerCallbacks
   void onDisconnect(BLEServer *server)
   {
     connected = false;
+    pendingControl.store(-1);
+    audioSubscription->setNotifications(false);
+    photoSubscription->setNotifications(false);
+    resetCapture = true;
     BLEDevice::startAdvertising();
   }
 };
@@ -120,18 +127,20 @@ class PhotoControlCallback : public BLECharacteristicCallbacks
   {
     if (characteristic->getLength() == 1)
     {
-      handlePhotoControl(characteristic->getData()[0]);
+      pendingControl.store((int)characteristic->getData()[0]);
     }
   }
 };
 
 void configure_ble() {
   BLEDevice::init("OpenGlass");
+  BLEDevice::setMTU(247);
   BLEServer *server = BLEDevice::createServer();
+  bleServer = server;
 
   // Main service
 
-  BLEService *service = server->createService(serviceUUID);
+  BLEService *service = server->createService(serviceUUID, 20);
 
   // Audio characteristics
   audioDataCharacteristic = service->createCharacteristic(
@@ -139,7 +148,7 @@ void configure_ble() {
     BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
   );
   BLE2902 *ccc = new BLE2902();
-  ccc->setNotifications(true);
+  audioSubscription = ccc;
   audioDataCharacteristic->addDescriptor(ccc);
 
   BLECharacteristic *audioCodecCharacteristic = service->createCharacteristic(
@@ -162,10 +171,10 @@ void configure_ble() {
       photoDataUUID,
       BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
   ccc = new BLE2902();
-  ccc->setNotifications(true);
+  photoSubscription = ccc;
   photoDataCharacteristic->addDescriptor(ccc);
 
-  BLECharacteristic *photoControlCharacteristic = service->createCharacteristic(
+  photoControlCharacteristic = service->createCharacteristic(
       photoControlUUID,
       BLECharacteristic::PROPERTY_WRITE);
   photoControlCharacteristic->setCallbacks(new PhotoControlCallback());
@@ -190,29 +199,18 @@ void configure_ble() {
 
   manufacturerNameCharacteristic->setValue("Based Hardware");
   modelNumberCharacteristic->setValue("OpenGlass");
-  firmwareRevisionCharacteristic->setValue("1.0.1");
+  firmwareRevisionCharacteristic->setValue("1.1.0");
   hardwareRevisionCharacteristic->setValue("Seeed Xiao ESP32S3 Sense");
 
-  // Battery Service
-  BLEService *batteryService = server->createService(BATTERY_SERVICE_UUID);
-  batteryLevelCharacteristic = batteryService->createCharacteristic(
-      BATTERY_LEVEL_CHAR_UUID,
-      BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
-  ccc = new BLE2902();
-  ccc->setNotifications(true);
-  batteryLevelCharacteristic->addDescriptor(ccc);
-  batteryLevelCharacteristic->setValue(&batteryLevel, 1);
+  // No battery service: this board has no wired battery voltage monitor.
 
   // Start the services
   service->start();
   deviceInfoService->start();
-  batteryService->start();
 
   server->setCallbacks(new ServerHandler());
 
   BLEAdvertising *advertising = BLEDevice::getAdvertising();
-  advertising->addServiceUUID(BATTERY_SERVICE_UUID);
-  advertising->addServiceUUID(DEVICE_INFORMATION_SERVICE_UUID);
   advertising->addServiceUUID(service->getUUID());
   advertising->setScanResponse(true);
   advertising->setMinPreferred(0x06);
@@ -220,12 +218,13 @@ void configure_ble() {
   BLEDevice::startAdvertising();
 }
 
-camera_fb_t *fb;
+camera_fb_t *fb = nullptr;
 
 bool take_photo() {
   // Release buffer
   if (fb) {
     esp_camera_fb_return(fb);
+    fb = nullptr;
   }
 
   // Take a photo
@@ -238,9 +237,9 @@ bool take_photo() {
   return true;
 }
 
-void handlePhotoControl(int8_t controlValue)
+void handlePhotoControl(uint8_t controlValue)
 {
-  if (controlValue == -1)
+  if (controlValue == 0xff)
   {
     // Take a single photo
     isCapturingPhotos = true;
@@ -251,11 +250,13 @@ void handlePhotoControl(int8_t controlValue)
     // Stop taking photos
     isCapturingPhotos = false;
     captureInterval = 0;
+    photoDataUploading = false;
+    if (fb) { esp_camera_fb_return(fb); fb = nullptr; }
   }
-  else if (controlValue >= 5 && controlValue <= 300)
+  else if (controlValue >= 5 && controlValue <= 250)
   {
     // Start taking photos at specified interval
-    captureInterval = (controlValue / 5) * 5000; // Round to nearest 5 seconds and convert to milliseconds
+    captureInterval = (controlValue / 5) * 5000; // Round down to a multiple of 5 seconds.
     isCapturingPhotos = true;
     lastCaptureTime = millis() - captureInterval;
   }
@@ -297,18 +298,19 @@ void configure_microphone() {
   I2S.setAllPins(-1, 42, 41, -1, -1);
   if (!I2S.begin(PDM_MONO_MODE, SAMPLE_RATE, SAMPLE_BITS)) {
     Serial.println("Failed to initialize I2S!");
-    while (1); // do nothing
+    return; // Camera remains usable when microphone initialization fails.
   }
 
   // Allocate buffers
   s_recording_buffer = (uint8_t *) ps_calloc(recording_buffer_size, sizeof(uint8_t));
   s_compressed_frame = (uint8_t *) ps_calloc(compressed_buffer_size, sizeof(uint8_t));
-  s_compressed_frame_2 = (uint8_t *) ps_calloc(compressed_buffer_size, sizeof(uint8_t));
+  microphoneReady = s_recording_buffer && s_compressed_frame;
+  if (!microphoneReady) Serial.println("Microphone allocation failed; audio disabled");
 }
 
 size_t read_microphone() {
   size_t bytes_recorded = 0;
-  esp_i2s::i2s_read(esp_i2s::I2S_NUM_0, s_recording_buffer, recording_buffer_size, &bytes_recorded, portMAX_DELAY);
+  esp_i2s::i2s_read(esp_i2s::I2S_NUM_0, s_recording_buffer, recording_buffer_size, &bytes_recorded, pdMS_TO_TICKS(25));
   return bytes_recorded;
 }
 
@@ -317,7 +319,7 @@ size_t read_microphone() {
 //
 
 void configure_camera() {
-  camera_config_t config;
+  camera_config_t config = {};
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
   config.pin_d0 = Y2_GPIO_NUM;
@@ -337,21 +339,16 @@ void configure_camera() {
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 20000000;
-  config.frame_size = FRAMESIZE_UXGA;
+  // Allocate enough PSRAM for OV5640 autofocus at SXGA before reducing to VGA.
+  config.frame_size = FRAMESIZE_SXGA;
   config.pixel_format = PIXFORMAT_JPEG; // for streaming
-  config.fb_count = 1;
+  config.fb_count = 2;
 
-  // High quality (psram)
-  // config.jpeg_quality = 10;
-  // config.fb_count = 2;
-  // config.grab_mode = CAMERA_GRAB_LATEST;
-
-  // Low quality (and in local ram)
-  config.jpeg_quality = 10;
-  config.frame_size = FRAMESIZE_SVGA;
+  config.jpeg_quality = 15;
   config.grab_mode = CAMERA_GRAB_LATEST;
   config.fb_location = CAMERA_FB_IN_PSRAM;
-  // config.fb_location = CAMERA_FB_IN_DRAM;
+
+  if (!psramFound()) { Serial.println("Enable OPI PSRAM for the XIAO ESP32S3 Sense"); return; }
 
   // camera init
   esp_err_t err = esp_camera_init(&config);
@@ -359,13 +356,38 @@ void configure_camera() {
     Serial.printf("Camera init failed with error 0x%x", err);
     return;
   }
-}
-
-void updateBatteryLevel()
-{
-  // TODO:
-  batteryLevelCharacteristic->setValue(&batteryLevel, 1);
-  batteryLevelCharacteristic->notify();
+  sensor_t *sensor = esp_camera_sensor_get();
+  if (!sensor) { Serial.println("Camera sensor unavailable"); return; }
+  Serial.printf("Camera PID: 0x%04x; PSRAM: %u bytes\n", sensor->id.PID, ESP.getPsramSize());
+  if (sensor->id.PID == OV5640_PID) {
+    // Seeed's OV5640 guidance: reduce DVP output drive and load AF firmware.
+    // esp_camera_init alone does not initialize the autofocus lens.
+    if (sensor->set_reg(sensor, 0x302c, 0xc0, 0x00) != 0)
+      Serial.println("Warning: OV5640 drive-strength adjustment failed");
+    OV5640 autofocus;
+    if (!autofocus.start(sensor) || autofocus.focusInit() != 0 || autofocus.autoFocusMode() != 0) {
+      Serial.println("OV5640 autofocus initialization failed; check the camera and power supply");
+      return;
+    }
+    const unsigned long started = millis();
+    while (autofocus.getFWStatus() != 0x10 && millis() - started < 8000) delay(100);
+    if (autofocus.getFWStatus() != 0x10)
+      Serial.println("Warning: autofocus has not settled; verify image sharpness before use");
+  } else if (sensor->id.PID == OV3660_PID) {
+    // Match the fixed-focus OV3660 orientation in Seeed/Espressif examples.
+    sensor->set_vflip(sensor, 1);
+    sensor->set_brightness(sensor, 1);
+    sensor->set_saturation(sensor, -2);
+  } else if (sensor->id.PID != OV2640_PID) {
+    Serial.println("Unsupported sensor: use a Seeed Sense OV2640, OV3660 or OV5640 camera");
+    return;
+  }
+  if (sensor->set_framesize(sensor, FRAMESIZE_VGA) != 0) {
+    Serial.println("Could not set VGA capture size");
+    return;
+  }
+  Serial.println("Camera ready: VGA JPEG; connect to OpenGlass over BLE");
+  cameraReady = true;
 }
 
 //
@@ -377,7 +399,8 @@ void updateBatteryLevel()
 void setup() {
   Serial.begin(921600);
   // SD.begin(21);
-  configure_ble();
+  s_compressed_frame_2 = (uint8_t *)malloc(202);
+  if (!s_compressed_frame_2) { Serial.println("Photo allocation failed"); return; }
   // s_compressed_frame_2 = (uint8_t *) ps_calloc(compressed_buffer_size, sizeof(uint8_t));
 #ifdef CODEC_OPUS
   int opus_err;
@@ -392,11 +415,30 @@ void setup() {
 #endif
   configure_microphone();
   configure_camera();
+  if (cameraReady) configure_ble();
+}
+
+int16_t amplifySample(int16_t sample) {
+  int32_t amplified = (int32_t)sample * (1 << VOLUME_GAIN);
+  return (int16_t)max((int32_t)-32768, min((int32_t)32767, amplified));
 }
 
 void loop() {
-  // Read from mic
-  size_t bytes_recorded = read_microphone();
+  if (!cameraReady || !bleServer) { delay(100); return; }
+  // Callbacks only publish commands. The main loop owns all frame buffers.
+  if (resetCapture.exchange(false)) {
+    isCapturingPhotos = false;
+    photoDataUploading = false;
+    sent_photo_bytes = sent_photo_frames = 0;
+    if (fb) { esp_camera_fb_return(fb); fb = nullptr; }
+  }
+  int command = pendingControl.exchange(-1);
+  if (command >= 0 && connected) handlePhotoControl((uint8_t)command);
+  uint16_t mtu = connected ? bleServer->getPeerMTU(bleServer->getConnId()) : 23;
+  if (mtu < 23) mtu = 23;
+  // No PDM read or audio notifications unless a client subscribes.
+  size_t bytes_recorded = microphoneReady && connected && audioSubscription->getNotifications()
+    ? read_microphone() : 0;
 
   // Push audio to BLE
   if (bytes_recorded > 0 && connected)
@@ -405,7 +447,7 @@ void loop() {
     int16_t samples[FRAME_SIZE];
     for (size_t i = 0; i < bytes_recorded; i += 2)
     {
-      samples[i / 2] = ((s_recording_buffer[i + 1] << 8) | s_recording_buffer[i]) << VOLUME_GAIN;
+      samples[i / 2] = amplifySample((int16_t)((s_recording_buffer[i + 1] << 8) | s_recording_buffer[i]));
     }
 
     int encoded_bytes = opus_encode(opus_encoder, samples, FRAME_SIZE, &s_compressed_frame[3], MAX_PACKET_SIZE - 3);
@@ -424,7 +466,7 @@ void loop() {
 #else
     for (size_t i = 0; i < bytes_recorded / 4; i++)
     {
-      int16_t sample = ((int16_t *)s_recording_buffer)[i * 2] << VOLUME_GAIN; // Read every other 16-bit sample
+      int16_t sample = amplifySample(((int16_t *)s_recording_buffer)[i * 2]); // Read every other 16-bit sample
       s_compressed_frame[i * 2 + 3] = sample & 0xFF;           // Low byte
       s_compressed_frame[i * 2 + 4] = (sample >> 8) & 0xFF;    // High byte
     }
@@ -438,8 +480,10 @@ void loop() {
     s_compressed_frame[2] = 0;
 
     size_t out_buffer_size = encoded_bytes + 3;
-    audioDataCharacteristic->setValue(s_compressed_frame, out_buffer_size);
-    audioDataCharacteristic->notify();
+    if (out_buffer_size <= (size_t)(mtu - 3)) {
+      audioDataCharacteristic->setValue(s_compressed_frame, out_buffer_size);
+      audioDataCharacteristic->notify();
+    }
     audio_frame_count++;
 #ifdef CODEC_OPUS
     }
@@ -450,7 +494,7 @@ void loop() {
   unsigned long now = millis();
 
   // Don't take a photo if we are already sending data for previous photo
-  if (isCapturingPhotos && !photoDataUploading && connected)
+  if (isCapturingPhotos && !photoDataUploading && connected && photoSubscription->getNotifications())
   {
     if ((captureInterval == 0)
       || ((now - lastCaptureTime) >= captureInterval))
@@ -472,16 +516,15 @@ void loop() {
   }
 
   // Push photo data to BLE
-  if (photoDataUploading) {
+  if (photoDataUploading && connected && photoSubscription->getNotifications()) {
     size_t remaining = fb->len - sent_photo_bytes;
     if (remaining > 0) {
       // Populate buffer
       s_compressed_frame_2[0] = sent_photo_frames & 0xFF;
       s_compressed_frame_2[1] = (sent_photo_frames >> 8) & 0xFF;
       size_t bytes_to_copy = remaining;
-      if (bytes_to_copy > 200) {
-        bytes_to_copy = 200;
-      }
+      size_t payloadLimit = min((size_t)200, (size_t)(mtu - 5));
+      if (bytes_to_copy > payloadLimit) bytes_to_copy = payloadLimit;
       memcpy(&s_compressed_frame_2[2], &fb->buf[sent_photo_bytes], bytes_to_copy);
 
       // Push to BLE
@@ -497,16 +540,11 @@ void loop() {
       photoDataCharacteristic->notify();
 
       photoDataUploading = false;
+      esp_camera_fb_return(fb);
+      fb = nullptr;
     }
   }
 
-  // Update battery level
-  if (now - lastBatteryUpdate > 60000)
-  {
-    updateBatteryLevel();
-    lastBatteryUpdate = millis();
-  }
-
   // Delay
-  delay(20);
+  delay(10);
 }
