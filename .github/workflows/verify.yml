@@ -40,4 +40,4 @@ jobs:
           arduino-cli core install esp32:esp32@2.0.17
           arduino-cli lib install "OV5640 Auto Focus for ESP32 Camera@0.1.1"
       - name: Compile the wearable target (OPI PSRAM, 8 MB flash)
-        run: arduino-cli compile --warnings all --fqbn esp32:esp32:XIAO_ESP32S3:PSRAM=opi,FlashSize=8M,PartitionScheme=huge_app,USBMode=hwcdc,CDCOnBoot=cdc firmware
+        run: arduino-cli compile --warnings all --fqbn esp32:esp32:XIAO_ESP32S3:PSRAM=opi,FlashSize=8M,PartitionScheme=default_8MB,USBMode=hwcdc,CDCOnBoot=cdc firmware

@@ -59,9 +59,9 @@ export const Main = React.memo(() => {
                                 <Text style={styles.eyebrow}>Smart Glasses · Reimagined</Text>
                                 <Text style={styles.connectTitle}>See the world through AI eyes</Text>
                                 <Text style={styles.connectSubtitle}>
-                                    Pair your XIAO ESP32S3 Sense board via Bluetooth. Photos are captured every 5
-                                    seconds, described by a vision LLM, and stored for you to search and ask
-                                    questions about anything you see.
+                                    Pair your XIAO ESP32S3 Sense board via Bluetooth. Capture scenes, read AI
+                                    descriptions, and ask typed questions about recent captures. History is
+                                    available when storage is configured. Capture speed depends on the connection.
                                 </Text>
                             </View>
                             {connectionError && <Text accessibilityRole="alert" style={{ color: Theme.error, textAlign: 'center' }}>{connectionError}</Text>}
@@ -72,7 +72,7 @@ export const Main = React.memo(() => {
                                 variant="marker"
                             />
 <Text style={styles.connectNote}>
-                        Requires desktop Chrome/Edge. iOS not supported.
+                        Use Chrome on Android or supported desktop Chrome/Edge. iOS is not supported.
                     </Text>
                         </View>
                     )}

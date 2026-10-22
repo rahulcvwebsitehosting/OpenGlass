@@ -16,10 +16,10 @@ arduino-cli config add board_manager.additional_urls https://raw.githubuserconte
 arduino-cli core update-index
 arduino-cli core install esp32:esp32@2.0.17
 arduino-cli lib install "OV5640 Auto Focus for ESP32 Camera@0.1.1"
-arduino-cli compile --warnings all --fqbn esp32:esp32:XIAO_ESP32S3:PSRAM=opi,FlashSize=8M,PartitionScheme=huge_app,USBMode=hwcdc,CDCOnBoot=cdc firmware
+arduino-cli compile --warnings all --fqbn esp32:esp32:XIAO_ESP32S3:PSRAM=opi,FlashSize=8M,PartitionScheme=default_8MB,USBMode=hwcdc,CDCOnBoot=cdc firmware
 ```
 
-If a CLI configuration already exists, skip `config init`. The `huge_app` partition provides a 3 MB application slot; this build does not implement OTA updates. Arduino IDE settings: **XIAO_ESP32S3**, **OPI PSRAM**, **8 MB flash**, **Huge APP**, **Hardware CDC and JTAG**, **USB CDC on boot enabled**. Leave other board defaults unchanged.
+If a CLI configuration already exists, skip `config init`. The `default_8MB` partition is the board's default 8 MB layout with a roughly 3 MB application slot; this build does not implement OTA updates. Arduino IDE settings: **XIAO_ESP32S3**, **OPI PSRAM**, **8 MB flash**, **Default with spiffs (3MB APP/1.5MB SPIFFS)**, **Hardware CDC and JTAG**, **USB CDC on boot enabled**. Leave other board defaults unchanged.
 
 ## Upload and inspect
 
@@ -27,7 +27,7 @@ Use a USB-C **data** cable. `arduino-cli board list` identifies the port; select
 
 ```sh
 arduino-cli board list
-arduino-cli upload --port COM5 --fqbn esp32:esp32:XIAO_ESP32S3:PSRAM=opi,FlashSize=8M,PartitionScheme=huge_app,USBMode=hwcdc,CDCOnBoot=cdc firmware
+arduino-cli upload --port COM5 --fqbn esp32:esp32:XIAO_ESP32S3:PSRAM=opi,FlashSize=8M,PartitionScheme=default_8MB,USBMode=hwcdc,CDCOnBoot=cdc firmware
 arduino-cli monitor --port COM5 --config baudrate=921600
 ```
 

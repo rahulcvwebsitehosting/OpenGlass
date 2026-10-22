@@ -7,7 +7,7 @@
 <h1 align="center">OpenGlass AI</h1>
 
 <p align="center">
-  <strong>Affordable smart glasses with live AI vision, searchable memories, and contextual answers.</strong><br>
+  <strong>Affordable smart glasses with scene descriptions, capture history, and contextual answers.</strong><br>
   Built by <a href="https://github.com/rahulcvwebsitehosting">Rahul Shyam</a> as an open, hackable hardware and software project.
 </p>
 
@@ -154,7 +154,7 @@ Open the local Expo web URL in desktop Chrome or Edge. Web Bluetooth requires a 
 
 ### 4. Flash the glasses firmware
 
-Install **ESP32 core 2.0.17** and **OV5640 Auto Focus for ESP32 Camera 0.1.1**, select **XIAO ESP32S3**, **OPI PSRAM**, **8 MB flash** and **Huge APP**, then compile and upload. Exact CLI and USB settings are in [`firmware/readme.md`](firmware/readme.md). Core 3.x changes the I2S API and is not a drop-in replacement.
+Install **ESP32 core 2.0.17** and **OV5640 Auto Focus for ESP32 Camera 0.1.1**, select **XIAO ESP32S3**, **OPI PSRAM**, **8 MB flash** and **Default with spiffs (3MB APP/1.5MB SPIFFS)**, then compile and upload. Exact CLI and USB settings are in [`firmware/readme.md`](firmware/readme.md). Core 3.x changes the I2S API and is not a drop-in replacement.
 
 Assemble the Sense daughterboard and antenna with power disconnected, upload on USB, inspect the camera/PSRAM serial messages, then use **Pair Device → OpenGlass** in the app. The app requests a five-second capture interval; BLE transfer and model latency can make the effective rate slower. Complete the [physical acceptance tests](docs/hardware-audit.md#physical-acceptance-tests) before wearable use.
 
